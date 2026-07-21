@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "logtempfs"
+version = "0.1.0"
+description = "Temporary filesystem abstraction for large support-log / SNAP style archives"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [
+    { name = "Roberto Etcheverry" },
+]
+dependencies = [
+    "D-MemFS>=0.4.0",
+    "psutil>=5.9.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/logtempfs"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
