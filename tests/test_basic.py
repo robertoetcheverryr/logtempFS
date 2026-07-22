@@ -1,5 +1,6 @@
 import tarfile
 from pathlib import Path
+from unittest.mock import patch
 
 from logtempfs import create_temp_fs
 from logtempfs.mem import MemTempFS
@@ -11,9 +12,7 @@ def _make_test_tgz(tmp_path: Path) -> Path:
     content_dir.mkdir()
     (content_dir / "hello.txt").write_text("hello from archive", encoding="utf-8")
     (content_dir / "subdir").mkdir()
-    (content_dir / "subdir" / "nested.txt").write_text(
-        "nested content", encoding="utf-8"
-    )
+    (content_dir / "subdir" / "nested.txt").write_text("nested content", encoding="utf-8")
 
     tgz_path = tmp_path / "test_archive.tgz"
     with tarfile.open(tgz_path, "w:gz") as tar:
@@ -58,3 +57,12 @@ class TestCreateTempFS:
         assert fs.exists("hello.txt")
         assert "hello.txt" in fs.listdir()
         assert fs.rglob("*.txt") == ["hello.txt"]
+
+    def test_memfs_failure_falls_back_to_real(self, tmp_path: Path):
+        """Force MemTempFS to fail so we hit the except + real fallback."""
+        tgz = _make_test_tgz(tmp_path)
+
+        with patch("logtempfs.decision.MemoryFileSystem", side_effect=RuntimeError("kaboom")):
+            with create_temp_fs(tgz, prefer_memory=True, min_free_gb=0.0) as fs:
+                assert isinstance(fs, RealTempFS)
+                _assert_contents(fs)

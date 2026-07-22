@@ -1,7 +1,6 @@
 import os
 import platform
 import shutil
-import subprocess
 import sys
 import tarfile
 import tempfile
@@ -31,21 +30,12 @@ def _extract_to_dir(archive_path: Path, target_dir: Path) -> None:
         tar.extractall(target_dir, **kwargs)
 
 
-def _run(cmd: list[str]) -> bool:
-    """Run a command, return True on success."""
-    try:
-        subprocess.run(cmd, check=True, capture_output=True)
-        return True
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return False
-
-
 @contextmanager
 def create_temp_fs(
     archive_path: Path,
     *,
     prefer_memory: bool = True,
-    min_free_gb: float = 4.0,
+    min_free_gb: float = 1.0,
 ) -> Iterator[MemTempFS | RealTempFS]:
     """
     Yield a TempFS that already contains the extracted archive.
