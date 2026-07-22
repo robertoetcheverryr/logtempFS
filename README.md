@@ -6,8 +6,9 @@ Give it an archive → get back a ready-to-use filesystem that already contains 
 
 ## Backends
 
-- **MemTempFS** – pure in-memory via D-MemFS (preferred when enough RAM is available)
-- **RealTempFS** – normal temporary directory (or Linux tmpfs)
+1. **MemTempFS** – pure in-memory via D-MemFS (when enough RAM is available)
+2. **RealTempFS on `/dev/shm`** – Linux tmpfs, no root required (when enough RAM is available)
+3. **RealTempFS** – normal temporary directory (fallback)
 
 The caller never has to care which backend was chosen.
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "logtempfs"
-version = "0.1.0"
+version = "0.1.1"
 description = "Temporary filesystem abstraction for large support-log / SNAP style archives"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -25,3 +25,4 @@ packages = ["src/logtempfs"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]

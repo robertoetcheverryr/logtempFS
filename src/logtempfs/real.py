@@ -7,8 +7,10 @@ class RealTempFS:
 
     def _resolve(self, rel_path: str) -> Path:
         path = (self.root / rel_path).resolve()
-        if not str(path).startswith(str(self.root)):
-            raise ValueError(f"Path escapes root: {rel_path}")
+        try:
+            path.relative_to(self.root)
+        except ValueError:
+            raise ValueError(f"Path escapes root: {rel_path}") from None
         return path
 
     def read_text(self, rel_path: str, encoding: str = "utf-8") -> str:

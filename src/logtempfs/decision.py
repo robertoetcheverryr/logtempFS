@@ -1,6 +1,8 @@
 import os
 import platform
 import shutil
+import subprocess
+import sys
 import tarfile
 import tempfile
 from contextlib import contextmanager
@@ -20,8 +22,20 @@ def _available_memory_gb() -> float:
 
 def _extract_to_dir(archive_path: Path, target_dir: Path) -> None:
     """Extract a tar/tgz archive into a real directory."""
+    kwargs = {}
+    if sys.version_info >= (3, 12):
+        kwargs["filter"] = "data"
     with tarfile.open(archive_path, "r:*") as tar:
-        tar.extractall(target_dir)
+        tar.extractall(target_dir, **kwargs)
+
+
+def _run(cmd: list[str]) -> bool:
+    """Run a command, return True on success."""
+    try:
+        subprocess.run(cmd, check=True, capture_output=True)
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
 
 
 @contextmanager
@@ -36,7 +50,7 @@ def create_temp_fs(
 
     Preference order:
     1. MemTempFS (D-MemFS) when enough RAM is available
-    2. RealTempFS on a Linux tmpfs when enough RAM is available
+    2. RealTempFS on /dev/shm (Linux, non-root) when enough RAM is available
     3. RealTempFS on a normal temporary directory
     """
     archive_size_gb = archive_path.stat().st_size / (1024**3)
@@ -60,29 +74,26 @@ def create_temp_fs(
                 print(f"WARNING: MemTempFS failed ({e}). Falling back.")
                 mfs = None
 
-        # 2. Try Linux tmpfs
+        # 2. Try Linux /dev/shm (tmpfs, no root required)
         if (
             fs is None
             and platform.system() == "Linux"
             and available > (needed_gb + min_free_gb)
         ):
-            mount_point = Path(tempfile.mkdtemp(prefix="logtempfs_ram_"))
-            size_arg = f"{needed_gb:.1f}G"
-            rc = os.system(f"mount -t tmpfs -o size={size_arg} tmpfs '{mount_point}'")
-            if rc == 0:
+            shm = Path("/dev/shm")
+            if shm.is_dir() and os.access(shm, os.W_OK):
                 try:
+                    mount_point = Path(
+                        tempfile.mkdtemp(prefix="logtempfs_ram_", dir=shm)
+                    )
                     _extract_to_dir(archive_path, mount_point)
-                    print(f"Using Linux tmpfs ({size_arg})")
+                    print(f"Using /dev/shm ({needed_gb:.1f} GB requested)")
                     fs = RealTempFS(mount_point)
-                except Exception:
-                    os.system(f"umount '{mount_point}' 2>/dev/null")
-                    shutil.rmtree(mount_point, ignore_errors=True)
-                    mount_point = None
-                    raise
-            else:
-                shutil.rmtree(mount_point, ignore_errors=True)
-                mount_point = None
-                print("WARNING: tmpfs mount failed. Falling back to normal temp dir.")
+                except Exception as e:
+                    print(f"WARNING: /dev/shm failed ({e}). Falling back.")
+                    if mount_point is not None:
+                        shutil.rmtree(mount_point, ignore_errors=True)
+                        mount_point = None
 
         # 3. Normal temporary directory
         if fs is None:
@@ -96,7 +107,6 @@ def create_temp_fs(
 
     finally:
         if mount_point is not None:
-            os.system(f"umount '{mount_point}' 2>/dev/null")
             shutil.rmtree(mount_point, ignore_errors=True)
         if tmp_dir is not None:
             tmp_dir.cleanup()
