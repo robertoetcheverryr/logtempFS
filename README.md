@@ -1,8 +1,14 @@
-# logtempfs
+# logtempFS
+
+[![CI](https://github.com/robertoetcheverryr/logtempFS/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/robertoetcheverryr/logtempFS/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/robertoetcheverryr/logtempFS/branch/master/graph/badge.svg)](https://codecov.io/gh/robertoetcheverryr/logtempFS)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 Temporary filesystem abstraction for large log archives.
 
-Give it an archive → get back a ready-to-use filesystem that already contains the extracted contents.
+Give it an archive and get back a ready-to-use filesystem that contains the extracted contents.
 
 ## Backends
 
