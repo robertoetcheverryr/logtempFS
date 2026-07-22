@@ -23,6 +23,7 @@ dev = [
     "pytest-cov",
     "ruff",
     "mypy",
+    "types-psutil",
 ]
 
 [tool.hatch.build.targets.wheel]

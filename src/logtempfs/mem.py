@@ -32,7 +32,7 @@ class MemTempFS:
         matches = []
         prefix = self.root + "/" if self.root else "/"
 
-        def walk(current: str):
+        def walk(current: str) -> None:
             for name in self.mfs.listdir(current):
                 full = f"{current.rstrip('/')}/{name}"
                 rel = (

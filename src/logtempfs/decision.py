@@ -5,8 +5,10 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
 
 import psutil
 from dmemfs import MemoryFileSystem, expand_archive_streaming
@@ -22,7 +24,7 @@ def _available_memory_gb() -> float:
 
 def _extract_to_dir(archive_path: Path, target_dir: Path) -> None:
     """Extract a tar/tgz archive into a real directory."""
-    kwargs = {}
+    kwargs: dict[str, Any] = {}
     if sys.version_info >= (3, 12):
         kwargs["filter"] = "data"
     with tarfile.open(archive_path, "r:*") as tar:
@@ -44,7 +46,7 @@ def create_temp_fs(
     *,
     prefer_memory: bool = True,
     min_free_gb: float = 4.0,
-):
+) -> Iterator[MemTempFS | RealTempFS]:
     """
     Yield a TempFS that already contains the extracted archive.
 
@@ -60,14 +62,14 @@ def create_temp_fs(
     mfs = None
     mount_point = None
     tmp_dir = None
-    fs = None
+    fs: MemTempFS | RealTempFS | None = None
 
     try:
         # 1. Try MemTempFS
         if prefer_memory and available > (needed_gb + min_free_gb):
             try:
                 mfs = MemoryFileSystem(max_quota=int(needed_gb * 1024**3))
-                expand_archive_streaming(mfs, archive_path, dest="/data")
+                expand_archive_streaming(mfs, str(archive_path), dest="/data")
                 print(f"Using MemTempFS (quota {needed_gb:.1f} GB)")
                 fs = MemTempFS(mfs, root="/data")
             except Exception as e:
@@ -75,17 +77,11 @@ def create_temp_fs(
                 mfs = None
 
         # 2. Try Linux /dev/shm (tmpfs, no root required)
-        if (
-            fs is None
-            and platform.system() == "Linux"
-            and available > (needed_gb + min_free_gb)
-        ):
+        if fs is None and platform.system() == "Linux" and available > (needed_gb + min_free_gb):
             shm = Path("/dev/shm")
             if shm.is_dir() and os.access(shm, os.W_OK):
                 try:
-                    mount_point = Path(
-                        tempfile.mkdtemp(prefix="logtempfs_ram_", dir=shm)
-                    )
+                    mount_point = Path(tempfile.mkdtemp(prefix="logtempfs_ram_", dir=shm))
                     _extract_to_dir(archive_path, mount_point)
                     print(f"Using /dev/shm ({needed_gb:.1f} GB requested)")
                     fs = RealTempFS(mount_point)
@@ -102,6 +98,11 @@ def create_temp_fs(
             extract_dir = Path(tmp_dir.name)
             _extract_to_dir(archive_path, extract_dir)
             fs = RealTempFS(extract_dir)
+
+        if fs is None:
+            raise RuntimeError(
+                "Failed to create any temporary filesystem (this should be unreachable)"
+            )
 
         yield fs
 
