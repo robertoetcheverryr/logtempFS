@@ -12,6 +12,10 @@ Give it an archive → get back a ready-to-use filesystem that already contains 
 
 The caller never has to care which backend was chosen.
 
+## AI usage disclosure
+
+AI assisted - Human reviewed
+
 ## Quick usage
 
 ```python
