@@ -13,8 +13,7 @@ Give it an archive and get back a ready-to-use filesystem that contains the extr
 ## Backends
 
 1. **MemTempFS** – pure in-memory via D-MemFS (when enough RAM is available)
-2. **RealTempFS on `/dev/shm`** – Linux tmpfs, no root required (when enough RAM is available)
-3. **RealTempFS** – normal temporary directory (fallback)
+2. **RealTempFS** – normal temporary directory (fallback)
 
 The caller never has to care which backend was chosen.
 
