@@ -1,6 +1,3 @@
-import os
-import platform
-import shutil
 import sys
 import tarfile
 import tempfile
@@ -42,15 +39,13 @@ def create_temp_fs(
 
     Preference order:
     1. MemTempFS (D-MemFS) when enough RAM is available
-    2. RealTempFS on /dev/shm (Linux, non-root) when enough RAM is available
-    3. RealTempFS on a normal temporary directory
+    2. RealTempFS on a normal temporary directory
     """
     archive_size_gb = archive_path.stat().st_size / (1024**3)
     needed_gb = max(2.0, archive_size_gb * 3)
     available = _available_memory_gb()
 
     mfs = None
-    mount_point = None
     tmp_dir = None
     fs: MemTempFS | RealTempFS | None = None
 
@@ -66,22 +61,7 @@ def create_temp_fs(
                 print(f"WARNING: MemTempFS failed ({e}). Falling back.")
                 mfs = None
 
-        # 2. Try Linux /dev/shm (tmpfs, no root required)
-        if fs is None and platform.system() == "Linux" and available > (needed_gb + min_free_gb):
-            shm = Path("/dev/shm")
-            if shm.is_dir() and os.access(shm, os.W_OK):
-                try:
-                    mount_point = Path(tempfile.mkdtemp(prefix="logtempfs_ram_", dir=shm))
-                    _extract_to_dir(archive_path, mount_point)
-                    print(f"Using /dev/shm ({needed_gb:.1f} GB requested)")
-                    fs = RealTempFS(mount_point)
-                except Exception as e:
-                    print(f"WARNING: /dev/shm failed ({e}). Falling back.")
-                    if mount_point is not None:
-                        shutil.rmtree(mount_point, ignore_errors=True)
-                        mount_point = None
-
-        # 3. Normal temporary directory
+        # 2. Normal temporary directory
         if fs is None:
             print("Using normal temporary directory")
             tmp_dir = tempfile.TemporaryDirectory(prefix="logtempfs_")
@@ -97,7 +77,5 @@ def create_temp_fs(
         yield fs
 
     finally:
-        if mount_point is not None:
-            shutil.rmtree(mount_point, ignore_errors=True)
         if tmp_dir is not None:
             tmp_dir.cleanup()
