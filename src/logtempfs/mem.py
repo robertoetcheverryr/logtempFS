@@ -35,9 +35,7 @@ class MemTempFS:
         def walk(current: str) -> None:
             for name in self.mfs.listdir(current):
                 full = f"{current.rstrip('/')}/{name}"
-                rel = (
-                    full[len(prefix) :] if full.startswith(prefix) else full.lstrip("/")
-                )
+                rel = full[len(prefix) :] if full.startswith(prefix) else full.lstrip("/")
                 if self.mfs.is_dir(full):
                     walk(full)
                 else:
