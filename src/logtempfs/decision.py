@@ -27,6 +27,24 @@ def _extract_to_dir(archive_path: Path, target_dir: Path) -> None:
         tar.extractall(target_dir, **kwargs)
 
 
+def _expanded_size_gb(archive_path: Path) -> float | None:
+    """Exact extracted footprint (GiB) of regular files, straight from tar headers.
+
+    Streams the archive once (gzip-decode only); far cheaper than an
+    extraction that fails on quota and rolls back. Returns None when the
+    archive cannot be read as tar.
+    """
+    total = 0
+    try:
+        with tarfile.open(archive_path, "r:*") as tar:
+            for member in tar:
+                if member.isfile():
+                    total += member.size
+    except (tarfile.TarError, OSError):
+        return None
+    return total / (1024**3)
+
+
 @contextmanager
 def create_temp_fs(
     archive_path: Path,
@@ -42,7 +60,15 @@ def create_temp_fs(
     2. RealTempFS on a normal temporary directory
     """
     archive_size_gb = archive_path.stat().st_size / (1024**3)
-    needed_gb = max(2.0, archive_size_gb * 3)
+    expanded_gb = _expanded_size_gb(archive_path)
+    if expanded_gb is not None:
+        # Provision from the real extracted footprint (+25% headroom).
+        # The old max(2.0, compressed*3) heuristic under-provisioned any
+        # high-ratio archive (>3:1) with a >2 GiB tree: quota pinned at the
+        # 2 GiB floor, extraction hit the wall mid-stream, silent fallback.
+        needed_gb = max(0.5, expanded_gb * 1.25)
+    else:
+        needed_gb = max(2.0, archive_size_gb * 3)
     available = _available_memory_gb()
 
     mfs = None
